@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>SignGlove Voice</title>
+<style>
+  :root {
+    --bg: #f5f6f4; --surface: #ffffff; --surface-2: #eef1ee; --text: #17201c; --muted: #5d6b64;
+    --line: #dfe5e1; --accent: #0f766e; --accent-2: #14b8a6; --accent-ink: #ffffff;
+    --good: #15803d; --bad: #b91c1c; --warn: #b45309; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1412; --surface: #161e1b; --surface-2: #1f2925; --text: #e8efeb; --muted: #95a59d;
+      --line: #2a3632; --accent: #2dd4bf; --accent-2: #5eead4; --accent-ink: #062b27;
+      --good: #4ade80; --bad: #f87171; --warn: #fbbf24; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; gap: 12px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .brand svg { width: 24px; height: 24px; color: var(--accent); }
+  .pill { margin-left: auto; font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--surface-2);
+    color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .pill.on { color: var(--good); } .pill.on i { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+  .pill.demo { color: var(--warn); } .pill.demo i { background: var(--warn); }
+
+  section.tab { display: none; padding: 16px 0 24px; } section.tab.active { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 15px; margin: 0 0 4px; } .card p.sub { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  h3.label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 20px 4px 8px; font-weight: 600; }
+
+  .btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 10px 14px; font-weight: 600; font-size: 15px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.danger { color: var(--bad); }
+  .btn.small { padding: 6px 10px; font-size: 13px; border-radius: 10px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .connect-opt { width: 100%; display: flex; gap: 14px; align-items: center; text-align: left; padding: 14px;
+    border-radius: 14px; border: 1px solid var(--line); background: var(--surface); margin-bottom: 10px; }
+  .connect-opt:hover { border-color: var(--accent); }
+  .connect-opt .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); flex: none; }
+  .connect-opt .ico svg { width: 22px; height: 22px; }
+  .connect-opt b { display: block; font-size: 16px; } .connect-opt span { color: var(--muted); font-size: 13px; }
+  .connect-opt.rec { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .note { font-size: 13px; color: var(--muted); padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+  .note.warn { color: var(--warn); }
+
+  .say-card { text-align: center; padding: 28px 16px 22px; }
+  .say-text { font-size: clamp(34px, 10vw, 56px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; min-height: 1.2em; margin: 6px 0 10px; overflow-wrap: anywhere; }
+  .say-text.idle { color: var(--muted); font-weight: 600; font-size: 22px; }
+  .say-text.pop { animation: pop .45s ease-out; }
+  @keyframes pop { 0% { transform: scale(.92); opacity: .3; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
+  .seeing { font-size: 14px; color: var(--muted); }
+  .toggle { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; user-select: none; }
+  .switch { width: 46px; height: 28px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s; flex: none; border: 0; padding: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch[aria-checked="true"] { background: var(--accent); } .switch[aria-checked="true"]::after { transform: translateX(18px); }
+
+  .history { list-style: none; margin: 0; padding: 0; }
+  .history li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .history li:last-child { border-bottom: 0; }
+  .history time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 12px; }
+
+  .hand { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-items: end; height: 170px; padding: 6px 4px 0; }
+  .finger { display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; }
+  .bar { position: relative; flex: 1; width: 100%; max-width: 46px; border-radius: 23px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
+  .bar > div { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, var(--accent), var(--accent-2)); transition: height .18s linear; border-radius: 23px; }
+  .finger small { font-size: 12px; color: var(--muted); } .finger b { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .finger:nth-child(1) .bar { max-width: 46px; height: 70%; flex: none; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .stat { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; }
+  .stat small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .stat b { font-size: 15px; font-variant-numeric: tabular-nums; }
+
+  .phrase { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .phrase:last-child { border-bottom: 0; }
+  .phrase .num { width: 28px; height: 28px; border-radius: 8px; background: var(--surface-2); display: grid; place-items: center; font-size: 13px; color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
+  .phrase .txt { flex: 1; min-width: 0; } .phrase .txt b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+  .phrase .txt span { font-size: 12px; color: var(--muted); }
+  .phrase .txt span.trained { color: var(--good); } .phrase .txt span.none { color: var(--warn); }
+  .phrase .acts { display: flex; gap: 6px; flex: none; }
+  .phrase.live { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 10px; }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, input[type=text] { width: 100%; font: inherit; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
+  .field { margin-bottom: 14px; } .field label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .field label span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .log { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); border-radius: 12px; padding: 10px; height: 46vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  .log .in { color: var(--text); } .log .out { color: var(--accent); } .log .sys { color: var(--muted); }
+
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  nav .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+  nav button { background: none; border: 0; padding: 9px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  nav button svg { width: 22px; height: 22px; }
+  nav button.active { color: var(--accent); }
+
+  .overlay { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 94%, transparent); display: none; place-items: center; text-align: center; padding: 24px; backdrop-filter: blur(6px); }
+  .overlay.show { display: grid; }
+  .overlay .big { font-size: 110px; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; min-height: 110px; }
+  .overlay .msg { font-size: clamp(22px, 6vw, 32px); font-weight: 700; max-width: 520px; margin: 18px auto 0; }
+  .overlay .hint { color: var(--muted); margin-top: 12px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 30;
+    background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; opacity: 0; transition: all .25s; max-width: calc(100% - 32px); pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.err { background: var(--bad); color: #fff; } .toast.ok { background: var(--good); color: #fff; }
+  .banner { display: none; align-items: center; gap: 10px; justify-content: space-between; } .banner.show { display: flex; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+      SignGlove
+    </div>
+    <div class="pill" id="pill"><i></i><span id="pillText">Not connected</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ============ TALK ============ -->
+  <section class="tab active" id="tab-talk">
+    <div id="connectBox">
+      <h3 class="label" style="margin-top:4px">Connect your glove</h3>
+      <button class="connect-opt rec hidden" id="btSerial">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></div>
+        <div><b>Bluetooth (HC-05 / HC-06)</b><span>Android phone with Chrome, or a laptop. Pair "HC-05" in Bluetooth settings first (PIN 1234).</span></div>
+      </button>
+      <button class="connect-opt hidden" id="bleBtn">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/><path d="M20.8 9.5a6 6 0 0 1 0 5M2 12h1"/></svg></div>
+        <div><b>Bluetooth LE (HM-10)</b><span>For iPhone (in the Bluefy browser) or Android, if you swap in an HM-10 module.</span></div>
+      </button>
+      <button class="connect-opt hidden" id="usbBtn">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14M8 6l4-4 4 4M7 12v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><circle cx="12" cy="19" r="3"/></svg></div>
+        <div><b>USB cable</b><span>Glove plugged into this computer. Good for testing.</span></div>
+      </button>
+      <button class="connect-opt" id="demoBtn">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+        <div><b>Demo mode</b><span>No glove needed. A pretend hand makes signs so you can try the app.</span></div>
+      </button>
+      <p class="note warn hidden" id="noApi">This browser can't talk to the glove. On <b>Android</b>, open this page in <b>Chrome</b> (version 137 or newer). On <b>iPhone</b>, Apple blocks HC-05 modules: use an HM-10 module and the free <b>Bluefy</b> browser. Demo mode still works.</p>
+    </div>
+
+    <div class="card banner" id="calBanner">
+      <div><b>Glove not calibrated</b><br><span style="color:var(--muted);font-size:14px">Takes 10 seconds: open hand, then fist.</span></div>
+      <button class="btn primary" data-cmd="C">Calibrate</button>
+    </div>
+
+    <div class="card say-card" aria-live="assertive">
+      <div class="say-text idle" id="sayText">Make a sign…</div>
+      <div class="seeing" id="seeing">&nbsp;</div>
+      <div class="row" style="justify-content:center;margin-top:16px;gap:18px">
+        <label class="toggle"><button class="switch" id="speakSwitch" role="switch" aria-checked="true" aria-label="Speak out loud"></button>Speak out loud</label>
+        <button class="btn small" id="repeatBtn">Repeat</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:4px">
+        <h2>Conversation</h2>
+        <button class="btn small" id="clearHist">Clear</button>
+      </div>
+      <ul class="history" id="history"><li class="empty">Nothing said yet.</li></ul>
+    </div>
+
+    <div class="row hidden" id="disconnectRow" style="justify-content:center">
+      <button class="btn danger" id="disconnectBtn">Disconnect</button>
+    </div>
+  </section>
+
+  <!-- ============ TRAIN ============ -->
+  <section class="tab" id="tab-train">
+    <div class="card">
+      <h2>Live hand</h2>
+      <p class="sub" id="liveSub">0% = finger straight, 100% = fully bent.</p>
+      <div class="hand" id="hand"></div>
+      <div class="stats">
+        <div class="stat"><small>Seeing</small><b id="stMatch">–</b></div>
+        <div class="stat"><small>Tilt</small><b id="stTilt">–</b></div>
+        <div class="stat"><small>Hand</small><b id="stStill">–</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>1. Calibrate</h2>
+      <p class="sub">Do this after putting the glove on. Open hand flat, then a tight fist.</p>
+      <button class="btn primary need-conn" data-cmd="C">Calibrate</button>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>2. Teach your signs</h2>
+        <button class="btn small need-conn" data-cmd="L">Refresh</button>
+      </div>
+      <p class="sub">Tap <b>Teach</b>, make the sign, hold it still. Teach each sign 2–3 times, with slightly different hand positions, for better accuracy.</p>
+      <div id="phrases"><div class="empty">Connect the glove to see its phrases.</div></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn danger need-conn" id="resetBtn">Reset all signs to defaults</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Sensitivity</h2>
+      <p class="sub">Higher = recognises signs more easily but may confuse similar ones.</p>
+      <div class="field">
+        <label for="tol">Match tolerance <span id="tolVal">40</span></label>
+        <input type="range" id="tol" min="10" max="100" step="1" value="40">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="tab" id="tab-settings">
+    <div class="card">
+      <h2>Phone voice</h2>
+      <p class="sub">How the phone speaks the glove's words.</p>
+      <div class="field"><label for="voice">Voice</label><select id="voice"></select></div>
+      <div class="field"><label for="rate">Speed <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1"></div>
+      <div class="field"><label for="pitch">Pitch <span id="pitchVal">1.0</span></label><input type="range" id="pitch" min="0.5" max="1.8" step="0.1" value="1"></div>
+      <div class="field"><label class="toggle" style="justify-content:flex-start"><button class="switch" id="promptSwitch" role="switch" aria-checked="true" aria-label="Read instructions aloud"></button>Read calibration/teach instructions aloud</label></div>
+      <button class="btn" id="testVoice">Test voice</button>
+    </div>
+
+    <div class="card hidden" id="dfCard">
+      <h2>Glove speaker</h2>
+      <p class="sub">Volume of the DFPlayer speaker built into the glove.</p>
+      <div class="field"><label for="dfVol">Volume <span id="dfVolVal">25</span></label><input type="range" id="dfVol" min="0" max="30" value="25"></div>
+    </div>
+
+    <div class="card">
+      <h2>Wiring check</h2>
+      <p class="sub">Shows raw sensor numbers (0–1023) on the Train tab. Each finger should change by 60+ when you bend it.</p>
+      <label class="toggle"><button class="switch need-conn" id="rawSwitch" role="switch" aria-checked="false" aria-label="Raw sensor mode"></button>Raw sensor values</label>
+    </div>
+
+    <div class="card">
+      <h2>Glove info</h2>
+      <p class="sub" id="infoText">Not connected.</p>
+      <button class="btn small need-conn" data-cmd="I">Refresh info</button>
+    </div>
+  </section>
+
+  <!-- ============ LOG ============ -->
+  <section class="tab" id="tab-log">
+    <div class="card">
+      <h2>Messages</h2>
+      <p class="sub">Everything the glove sends. Type a command (? for help).</p>
+      <div class="log" id="log"></div>
+      <form class="row" id="cmdForm" style="margin-top:10px;flex-wrap:nowrap">
+        <input type="text" id="cmdInput" placeholder="e.g. T5  or  ?" autocomplete="off" autocapitalize="characters">
+        <button class="btn primary need-conn" type="submit">Send</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <div class="wrap">
+    <button class="active" data-tab="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Talk</button>
+    <button data-tab="train"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>Train</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+    <button data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Log</button>
+  </div>
+</nav>
+
+<div class="overlay" id="overlay" role="dialog" aria-live="assertive">
+  <div><div class="big" id="ovNum"></div><div class="msg" id="ovMsg"></div><div class="hint">Keep your gloved hand like this until the countdown ends</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb";
+const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+
+// ---------------------------------------------------------------- settings
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("sg_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("sg_" + k, JSON.stringify(v)); } catch {} }
+};
+const settings = {
+  speak: store.get("speak", true), speakPrompts: store.get("speakPrompts", true),
+  voice: store.get("voice", ""), rate: store.get("rate", 1), pitch: store.get("pitch", 1)
+};
+
+// ---------------------------------------------------------------- state
+const state = { link: null, kind: null, phrases: [], phraseBuf: [], cfg: null, stream: 0, lastSay: "", liveMatch: -1 };
+
+// ---------------------------------------------------------------- speech
+let voices = [];
+function loadVoices() {
+  if (!("speechSynthesis" in window)) return;
+  voices = speechSynthesis.getVoices();
+  const sel = $("voice");
+  sel.innerHTML = "";
+  const def = document.createElement("option"); def.value = ""; def.textContent = "Default voice"; sel.appendChild(def);
+  const sorted = [...voices].sort((a, b) => (b.lang.startsWith("en") - a.lang.startsWith("en")) || a.name.localeCompare(b.name));
+  for (const v of sorted) { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = `${v.name} (${v.lang})`; sel.appendChild(o); }
+  sel.value = settings.voice;
+}
+if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+function speak(text, { force = false } = {}) {
+  if (!("speechSynthesis" in window) || !text) return;
+  if (!settings.speak && !force) return;
+  const u = new SpeechSynthesisUtterance(text);
+  const v = voices.find((x) => x.voiceURI === settings.voice);
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = settings.rate; u.pitch = settings.pitch;
+  if (speechSynthesis.pending) speechSynthesis.cancel(); // don't build up a backlog
+  speechSynthesis.speak(u);
+}
+// iOS/Android only allow speech after a tap: speak a silent word during the first tap.
+function unlockSpeech() {
+  if (!("speechSynthesis" in window) || unlockSpeech.done) return;
+  const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); unlockSpeech.done = true;
+}
+
+// ---------------------------------------------------------------- UI helpers
+let toastTimer;
+function toast(msg, kind = "") {
+  const t = $("toast"); t.textContent = msg; t.className = "toast show " + kind;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = "toast " + kind), 2600);
+}
+function logLine(text, cls) {
+  const log = $("log"); const d = document.createElement("div"); d.className = cls; d.textContent = text; log.appendChild(d);
+  while (log.childNodes.length > 300) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+function setSwitch(el, on) { el.setAttribute("aria-checked", on ? "true" : "false"); }
+
+function setConnected(kind) {
+  state.kind = kind;
+  const pill = $("pill");
+  const names = { bt: "Bluetooth", ble: "Bluetooth LE", usb: "USB", demo: "Demo" };
+  pill.className = "pill " + (kind ? (kind === "demo" ? "demo" : "on") : "");
+  $("pillText").textContent = kind ? names[kind] : "Not connected";
+  $("connectBox").classList.toggle("hidden", !!kind);
+  $("disconnectRow").classList.toggle("hidden", !kind);
+  document.querySelectorAll(".need-conn").forEach((b) => (b.disabled = !kind));
+  if (!kind) { $("calBanner").classList.remove("show"); $("infoText").textContent = "Not connected."; state.stream = 0; setSwitch($("rawSwitch"), false); }
+  keepAwake(!!kind);
+}
+
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && "wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); }
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.kind) keepAwake(true); });
+
+// ---------------------------------------------------------------- tabs
+let currentTab = "talk";
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+  updateStream();
+  window.scrollTo(0, 0);
+}
+// live data only while the Train tab is open (keeps Bluetooth quiet otherwise)
+async function updateStream() {
+  if (!state.link) return;
+  const raw = $("rawSwitch").getAttribute("aria-checked") === "true";
+  const want = currentTab === "train" ? (raw ? 2 : 1) : 0;
+  if (want !== state.stream) { state.stream = want; await sendCmd("S" + want, { quiet: true }); }
+}
+
+// ---------------------------------------------------------------- links
+class SerialLink {
+  constructor(port, baud) { this.port = port; this.baud = baud; this.closed = false; }
+  async open(onLine, onClose) {
+    await this.port.open({ baudRate: this.baud });
+    this.writer = this.port.writable.getWriter();
+    this.readLoop(onLine, onClose);
+  }
+  async readLoop(onLine, onClose) {
+    const dec = new TextDecoder(); let buf = "";
+    try {
+      while (this.port.readable && !this.closed) {
+        this.reader = this.port.readable.getReader();
+        try {
+          for (;;) {
+            const { value, done } = await this.reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let i; while ((i = buf.search(/\r?\n/)) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(buf[i] === "\r" ? i + 2 : i + 1); if (line) onLine(line); }
+          }
+        } finally { this.reader.releaseLock(); }
+      }
+    } catch (e) { if (!this.closed) logLine("Read error: " + e.message, "sys"); }
+    if (!this.closed) onClose();
+  }
+  async send(text) { await this.writer.write(new TextEncoder().encode(text + "\n")); }
+  async close() {
+    this.closed = true;
+    try { await this.reader?.cancel(); } catch {}
+    try { this.writer?.releaseLock(); } catch {}
+    try { await this.port.close(); } catch {}
+  }
+}
+
+class BleLink {
+  constructor(device) { this.device = device; }
+  async open(onLine, onClose) {
+    this.device.addEventListener("gattserverdisconnected", () => { if (!this.closed) onClose(); });
+    const server = await this.device.gatt.connect();
+    const svc = await server.getPrimaryService(0xffe0);
+    this.ch = await svc.getCharacteristic(0xffe1);
+    const dec = new TextDecoder(); let buf = "";
+    this.ch.addEventListener("characteristicvaluechanged", (e) => {
+      buf += dec.decode(e.target.value, { stream: true });
+      let i; while ((i = buf.search(/\r?\n/)) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(buf[i] === "\r" ? i + 2 : i + 1); if (line) onLine(line); }
+    });
+    await this.ch.startNotifications();
+  }
+  async send(text) {
+    const data = new TextEncoder().encode(text + "\n");
+    for (let i = 0; i < data.length; i += 20) {
+      const chunk = data.slice(i, i + 20);
+      if (this.ch.writeValueWithoutResponse) await this.ch.writeValueWithoutResponse(chunk); else await this.ch.writeValue(chunk);
+    }
+  }
+  async close() { this.closed = true; try { this.device.gatt.disconnect(); } catch {} }
+}
+
+// A pretend glove that speaks the same protocol as the real firmware.
+class DemoLink {
+  constructor() {
+    this.phrases = [["(rest)",[25,25,25,25,25]],["Hello",[0,0,0,0,0]],["Yes",[100,100,100,100,100]],["No",[80,0,0,100,100]],["Thank you",[0,0,100,100,100]],["I love you",[0,0,100,100,0]],["I need help",[80,0,100,100,100]],["I need water",[80,0,0,0,100]],["Good",[0,100,100,100,100]],["Okay",[60,60,0,0,0]],["Call me",[0,100,100,100,0]],["I need the bathroom",[80,100,100,100,0]],["I am hungry",[0,0,0,100,100]],["Nice to meet you",[80,0,100,100,0]],["Goodbye",[80,0,0,0,0]],["Sorry",null],["Please",null]];
+    this.counts = this.phrases.map((p) => (p[1] ? 1 : 0));
+    this.defs = [...this.counts];
+    this.cal = false; this.stream = 0; this.tol = 40; this.busy = false;
+    this.bend = [25,25,25,25,25]; this.target = [25,25,25,25,25]; this.roll = 0; this.pitch = 0;
+    this.seq = [1, 0, 5, 0, 8, 0, 7, 0, 2, 0, 10, 0, 4, 0];
+    this.step = 0;
+  }
+  async open(onLine) {
+    this.emit = (l) => setTimeout(() => onLine(l), 25);
+    this.emit("HELLO:SignGlove 1.0 (demo)");
+    this.emit("CFG:0,1,40,15,0");
+    this.emit("MSG:Not calibrated yet - send C (or tap Calibrate in the app)");
+    this.tick = setInterval(() => this.update(), 50);
+    this.poseTimer = setInterval(() => this.nextPose(), 2600);
+    this.held = 0; this.lastSaid = -1;
+  }
+  nextPose() {
+    if (this.busy) return;
+    const id = this.seq[this.step++ % this.seq.length];
+    this.target = this.phrases[id][1].map((v) => Math.max(0, Math.min(100, v + (Math.random() * 14 - 7))));
+    this.targetId = id;
+  }
+  update() {
+    for (let i = 0; i < 5; i++) this.bend[i] += (this.target[i] - this.bend[i]) * 0.18;
+    this.roll = Math.round(Math.sin(Date.now() / 2400) * 12); this.pitch = Math.round(Math.cos(Date.now() / 3100) * 8);
+    // nearest phrase
+    let best = -1, bd = 1e9, second = 1e9;
+    this.phrases.forEach((p, id) => { if (!p[1] || !this.counts[id]) return; const d = Math.sqrt(p[1].reduce((s, v, i) => s + (v - this.bend[i]) ** 2 * (i ? 1 : 0.8), 0)); if (d < bd) { second = bd; bd = d; best = id; } else if (d < second) second = d; });
+    const match = this.cal && bd <= this.tol && second - bd >= 5 ? best : -1;
+    if (match === this.match) this.held += 50; else { this.match = match; this.held = 0; if (match === -1) this.lastSaid = -1; }
+    if (!this.busy && match > 0 && this.held >= 500 && match !== this.lastSaid) { this.emit(`SAY:${match}|${this.phrases[match][0]}`); this.lastSaid = match; }
+    if (match === 0) this.lastSaid = 0;
+    this.sinceStream = (this.sinceStream || 0) + 50;
+    if (this.stream && this.sinceStream >= 200) {
+      this.sinceStream = 0;
+      const vals = this.stream === 2 ? this.bend.map((b) => Math.round(290 - b * 1.6)) : this.bend.map((b) => Math.round(b));
+      this.emit(`${this.stream === 2 ? "LR" : "LV"}:${vals.join(",")},${this.roll},${this.pitch},${match},${Math.min(999, Math.round(bd))},1`);
+    }
+  }
+  async run(steps) { this.busy = true; for (const [line, wait, pose] of steps) { if (pose) this.target = pose; this.emit(line); await new Promise((r) => setTimeout(r, wait)); } this.busy = false; }
+  async send(text) { const s = text.trim(); this.emit("ACK:" + s); setTimeout(() => this.handle(s), 40); }
+  async handle(s) {
+    const c = s[0].toUpperCase(), n = parseInt(s.slice(1), 10), P = this.phrases;
+    if (c === "C") {
+      const open = [0,0,0,0,0], fist = [100,100,100,100,100];
+      await this.run([["PROMPT:OPEN your hand - fingers straight and flat ... 3", 1000, open], ["PROMPT:OPEN your hand - fingers straight and flat ... 2", 1000], ["PROMPT:OPEN your hand - fingers straight and flat ... 1", 1000], ["PROMPT:Hold still... reading OPEN hand", 1500],
+        ["PROMPT:Make a tight FIST - thumb over your fingers ... 3", 1000, fist], ["PROMPT:Make a tight FIST - thumb over your fingers ... 2", 1000], ["PROMPT:Make a tight FIST - thumb over your fingers ... 1", 1000], ["PROMPT:Hold still... reading FIST", 1500], ["PROMPT_END", 0]]);
+      this.cal = true; this.emit("OK:Calibration done"); this.emit(`CFG:1,1,${this.tol},${this.counts.reduce((a, b) => a + b)},0`);
+    } else if (c === "T" && P[n]) {
+      const shape = P[n][1] || [40,100,100,100,100];
+      await this.run([[`PROMPT:Make the sign for "${P[n][0]}" ... 3`, 1000, shape], [`PROMPT:Make the sign for "${P[n][0]}" ... 2`, 1000], [`PROMPT:Make the sign for "${P[n][0]}" ... 1`, 1000], [`PROMPT:Hold "${P[n][0]}" still...`, 1200], ["PROMPT_END", 0]]);
+      if (!P[n][1]) P[n][1] = shape;
+      this.counts[n] -= this.defs[n]; this.defs[n] = 0; this.counts[n] += 1; this.lastSaid = n;
+      this.emit(`OK:Learned "${P[n][0]}" (${this.counts[n]} samples)`);
+    } else if (c === "D" && P[n]) { this.counts[n] = 0; this.defs[n] = 0; this.emit(`OK:Deleted signs for "${P[n][0]}"`); }
+    else if (c === "R") { this.counts = P.map((p, i) => (i < 15 ? 1 : 0)); this.defs = [...this.counts]; this.emit("OK:All signs reset to defaults"); }
+    else if (c === "L") { P.forEach((p, i) => this.emit(`PH:${i}|${p[0]}|${this.counts[i]}|${this.defs[i]}`)); this.emit("PHEND"); }
+    else if (c === "P" && P[n]) this.emit(`SAY:${n}|${P[n][0]}`);
+    else if (c === "S") { this.stream = Math.max(0, Math.min(2, n || 0)); this.emit("OK:stream " + this.stream); }
+    else if (c === "G") { this.tol = Math.max(10, Math.min(100, n || 40)); this.emit("OK:tolerance " + this.tol); }
+    else if (c === "I") { this.emit("HELLO:SignGlove 1.0 (demo)"); this.emit(`MSG:calibrated=${this.cal ? "yes" : "NO (send C)"} mpu6050=ok signs=${this.counts.reduce((a, b) => a + b)}/110 tolerance=${this.tol}`); this.emit(`CFG:${this.cal ? 1 : 0},1,${this.tol},${this.counts.reduce((a, b) => a + b)},0`); }
+    else if (c === "?" || c === "H") { this.emit("MSG:C=calibrate  T<n>=train  D<n>=delete  R=reset defaults  L=list"); this.emit("MSG:P<n>=say  S0/S1/S2=stream off/bend/raw  G<n>=tolerance  V<n>=volume  I=info"); }
+    else this.emit("ERR:Unknown command - send ? for help");
+  }
+  async close() { clearInterval(this.tick); clearInterval(this.poseTimer); }
+}
+
+// ---------------------------------------------------------------- connect
+async function connect(kind) {
+  unlockSpeech();
+  try {
+    let link;
+    if (kind === "bt") {
+      const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [SPP_UUID] });
+      link = new SerialLink(port, 9600);
+    } else if (kind === "usb") {
+      const port = await navigator.serial.requestPort();
+      link = new SerialLink(port, 115200);
+    } else if (kind === "ble") {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [0xffe0] }, { namePrefix: "HM" }, { namePrefix: "BT" }, { namePrefix: "MLT" }, { namePrefix: "DSD" }, { namePrefix: "HC" }, { namePrefix: "JDY" }, { namePrefix: "AT-09" }, { namePrefix: "CC41" }],
+        optionalServices: [0xffe0] });
+      link = new BleLink(device);
+    } else link = new DemoLink();
+
+    await link.open(onLine, () => { toast("Glove disconnected", "err"); logLine("— disconnected —", "sys"); state.link = null; setConnected(null); });
+    state.link = link; setConnected(kind);
+    logLine(`— connected (${kind}) —`, "sys");
+    toast(kind === "demo" ? "Demo mode: tap Calibrate to start" : "Glove connected", "ok");
+    // USB resets the Nano when the port opens, so give it a moment to boot
+    await new Promise((r) => setTimeout(r, kind === "usb" ? 2200 : 300));
+    await sendCmd("I", { quiet: true });
+    await sendCmd("L", { quiet: true });
+    updateStream();
+  } catch (e) {
+    if (e && e.name === "NotFoundError") return; // user closed the picker
+    console.error(e);
+    toast(friendlyError(e), "err");
+    logLine("Connect failed: " + (e && e.message), "sys");
+  }
+}
+function friendlyError(e) {
+  const m = (e && e.message) || "";
+  if (/open|busy|in use/i.test(m)) return "Port busy: close Arduino Serial Monitor, then retry";
+  if (/bluetooth/i.test(m)) return "Bluetooth problem: is the glove on and paired?";
+  return "Could not connect: " + m;
+}
+async function disconnect() {
+  const l = state.link; state.link = null;
+  try { if (state.stream) await l.send("S0"); } catch {}
+  try { await l.close(); } catch {}
+  setConnected(null); logLine("— disconnected —", "sys");
+}
+
+// ---------------------------------------------------------------- commands (with retry)
+const waiters = [];
+function waitFor(pred, ms) {
+  return new Promise((resolve) => {
+    const w = { pred, resolve }; waiters.push(w);
+    setTimeout(() => { const i = waiters.indexOf(w); if (i >= 0) { waiters.splice(i, 1); resolve(false); } }, ms);
+  });
+}
+let queue = Promise.resolve();
+function sendCmd(cmd, { quiet = false } = {}) {
+  const job = queue.then(async () => {
+    if (!state.link) return false;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const acked = waitFor((l) => l === "ACK:" + cmd, 900); // listen before sending
+      try { await state.link.send(cmd); } catch (e) { logLine("Send failed: " + e.message, "sys"); return false; }
+      if (!quiet || attempt === 0) logLine("→ " + cmd, "out");
+      if (await acked) return true;
+    }
+    toast("The glove didn't answer. Is it switched on?", "err");
+    return false;
+  });
+  queue = job.catch(() => {});
+  return job;
+}
+
+// ---------------------------------------------------------------- incoming lines
+function onLine(line) {
+  for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i].pred(line)) { waiters[i].resolve(true); waiters.splice(i, 1); }
+  const isLive = line.startsWith("LV:") || line.startsWith("LR:");
+  if (!isLive && !line.startsWith("ACK:")) logLine(line, "in");
+
+  const colon = line.indexOf(":");
+  const tag = colon > 0 ? line.slice(0, colon) : line;
+  const body = colon > 0 ? line.slice(colon + 1) : "";
+
+  switch (tag) {
+    case "SAY": { const [id, ...rest] = body.split("|"); showSay(rest.join("|"), +id); break; }
+    case "LV": case "LR": showLive(body, tag === "LR"); break;
+    case "PH": { const [id, text, count, defs] = body.split("|"); state.phraseBuf.push({ id: +id, text, count: +count, taught: +count - +defs }); break; }
+    case "PHEND": state.phrases = state.phraseBuf; state.phraseBuf = []; renderPhrases(); break;
+    case "PROMPT": showPrompt(body); break;
+    case "PROMPT_END": hidePrompt(); break;
+    case "OK": if (!/^stream/.test(body)) toast(body, "ok"); if (/Learned|Deleted|reset/i.test(body)) sendCmd("L", { quiet: true }); if (/Calibration/i.test(body)) sendCmd("I", { quiet: true }); break;
+    case "ERR": toast(body, "err"); break;
+    case "HELLO": $("infoText").textContent = body; break;
+    case "MSG": if (/calibrated=/.test(body)) $("infoText").textContent = body.replace(/ (?=\w+=)/g, " · "); break;
+    case "CFG": {
+      const [cal, mpu, tol, count, df] = body.split(",").map(Number);
+      state.cfg = { cal, mpu, tol, count, df };
+      $("calBanner").classList.toggle("show", !cal);
+      $("tol").value = tol; $("tolVal").textContent = tol;
+      $("dfCard").classList.toggle("hidden", !df);
+      break;
+    }
+  }
+}
+
+// ---------------------------------------------------------------- talk view
+function showSay(text, id) {
+  if (!text || id === 0) return;
+  state.lastSay = text;
+  const el = $("sayText"); el.classList.remove("idle", "pop"); void el.offsetWidth; el.textContent = text; el.classList.add("pop");
+  speak(text);
+  const h = $("history"); if (h.querySelector(".empty")) h.innerHTML = "";
+  const li = document.createElement("li");
+  const t = document.createElement("time"); t.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const s = document.createElement("span"); s.textContent = text;
+  li.append(s, t); h.prepend(li);
+  while (h.children.length > 50) h.removeChild(h.lastChild);
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+$("repeatBtn").addEventListener("click", () => { unlockSpeech(); if (state.lastSay) speak(state.lastSay, { force: true }); });
+$("clearHist").addEventListener("click", () => { $("history").innerHTML = '<li class="empty">Nothing said yet.</li>'; });
+
+// ---------------------------------------------------------------- live view
+const hand = $("hand");
+FINGERS.forEach((f, i) => {
+  const d = document.createElement("div"); d.className = "finger";
+  d.innerHTML = `<b id="fv${i}">–</b><div class="bar"><div id="fb${i}" style="height:0%"></div></div><small>${f}</small>`;
+  hand.appendChild(d);
+});
+function phraseName(id) { const p = state.phrases.find((x) => x.id === id); return p ? p.text : "#" + id; }
+function showLive(body, raw) {
+  const v = body.split(",").map(Number);
+  for (let i = 0; i < 5; i++) {
+    const pct = raw ? Math.round((v[i] / 1023) * 100) : v[i];
+    $("fb" + i).style.height = Math.max(0, Math.min(100, pct)) + "%";
+    $("fv" + i).textContent = raw ? v[i] : v[i] + "%";
+  }
+  $("liveSub").textContent = raw ? "Raw sensor values (0–1023). Bend each finger: its number should change by 60 or more." : "0% = finger straight, 100% = fully bent.";
+  const match = v[7];
+  $("stMatch").textContent = match < 0 ? "nothing" : match === 0 ? "rest" : phraseName(match);
+  $("stTilt").textContent = `${v[5]}° / ${v[6]}°`;
+  $("stStill").textContent = v[9] ? "still ✓" : "moving";
+  $("seeing").textContent = match > 0 ? `Seeing: ${phraseName(match)}` : " ";
+  if (match !== state.liveMatch) {
+    state.liveMatch = match;
+    document.querySelectorAll(".phrase").forEach((el) => el.classList.toggle("live", +el.dataset.id === match));
+  }
+}
+
+// ---------------------------------------------------------------- phrases / training
+function renderPhrases() {
+  const box = $("phrases"); box.innerHTML = "";
+  for (const p of state.phrases) {
+    const row = document.createElement("div"); row.className = "phrase"; row.dataset.id = p.id;
+    const status = p.count === 0 ? '<span class="none">not taught yet</span>'
+      : p.taught === 0 ? `<span>built-in guess · teach it for accuracy</span>`
+      : `<span class="trained">taught ${p.taught}×</span>`;
+    const name = p.id === 0 ? "Rest (relaxed hand – stays silent)" : p.text;
+    row.innerHTML = `<div class="num">${p.id}</div><div class="txt"><b></b>${status}</div><div class="acts"></div>`;
+    row.querySelector("b").textContent = name;
+    const acts = row.querySelector(".acts");
+    const teach = mkBtn("Teach", "btn small primary", () => sendCmd("T" + p.id)); acts.appendChild(teach);
+    if (p.id !== 0) acts.appendChild(mkBtn("Say", "btn small", () => { unlockSpeech(); sendCmd("P" + p.id); }));
+    if (p.count > 0) acts.appendChild(mkBtn("✕", "btn small danger", () => { if (confirm(`Forget all samples for "${name}"?`)) sendCmd("D" + p.id); }, "Forget"));
+    box.appendChild(row);
+  }
+}
+function mkBtn(label, cls, fn, aria) { const b = document.createElement("button"); b.className = cls; b.textContent = label; if (aria) b.setAttribute("aria-label", aria); b.addEventListener("click", fn); return b; }
+$("resetBtn").addEventListener("click", () => { if (confirm("Forget everything you taught and go back to the built-in signs?")) sendCmd("R"); });
+
+let tolTimer;
+$("tol").addEventListener("input", (e) => { $("tolVal").textContent = e.target.value; clearTimeout(tolTimer); tolTimer = setTimeout(() => sendCmd("G" + e.target.value), 350); });
+let volTimer;
+$("dfVol").addEventListener("input", (e) => { $("dfVolVal").textContent = e.target.value; clearTimeout(volTimer); volTimer = setTimeout(() => sendCmd("V" + e.target.value), 350); });
+
+// ---------------------------------------------------------------- prompt overlay
+let lastPromptSpoken = "";
+function showPrompt(text) {
+  const m = text.match(/^(.*?)\s*\.\.\.\s*(\d+)$/);
+  const msg = m ? m[1] : text; const num = m ? m[2] : "";
+  $("ovMsg").textContent = msg; $("ovNum").textContent = num || "✋";
+  $("overlay").classList.add("show");
+  if (settings.speakPrompts && msg !== lastPromptSpoken && num) { lastPromptSpoken = msg; speak(msg.replace(/ - /g, ". "), { force: true }); }
+}
+function hidePrompt() { $("overlay").classList.remove("show"); lastPromptSpoken = ""; }
+
+// ---------------------------------------------------------------- settings UI
+function bindSwitch(el, key, after) {
+  setSwitch(el, settings[key]);
+  el.addEventListener("click", () => { settings[key] = !settings[key]; setSwitch(el, settings[key]); store.set(key, settings[key]); after && after(); });
+}
+bindSwitch($("speakSwitch"), "speak", () => { if (settings.speak) unlockSpeech(); else speechSynthesis.cancel(); });
+bindSwitch($("promptSwitch"), "speakPrompts");
+$("rawSwitch").addEventListener("click", (e) => { const on = e.currentTarget.getAttribute("aria-checked") !== "true"; setSwitch(e.currentTarget, on); updateStream(); if (on) toast("Open the Train tab to see raw values"); });
+$("voice").addEventListener("change", (e) => { settings.voice = e.target.value; store.set("voice", settings.voice); });
+for (const k of ["rate", "pitch"]) {
+  const el = $(k); el.value = settings[k]; $(k + "Val").textContent = (+settings[k]).toFixed(1);
+  el.addEventListener("input", () => { settings[k] = +el.value; $(k + "Val").textContent = (+el.value).toFixed(1); store.set(k, settings[k]); });
+}
+$("testVoice").addEventListener("click", () => { unlockSpeech(); speak("Hello! I am your sign language glove.", { force: true }); });
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cmd]"); if (b) { unlockSpeech(); sendCmd(b.dataset.cmd); }
+});
+$("cmdForm").addEventListener("submit", (e) => { e.preventDefault(); const v = $("cmdInput").value.trim(); if (v) { sendCmd(v.toUpperCase()); $("cmdInput").value = ""; } });
+
+// ---------------------------------------------------------------- startup
+const hasSerial = "serial" in navigator, hasBle = "bluetooth" in navigator;
+const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (hasSerial) { $("btSerial").classList.remove("hidden"); if (!isMobile) $("usbBtn").classList.remove("hidden"); }
+if (hasBle) $("bleBtn").classList.remove("hidden");
+if (isIOS && hasBle) { $("bleBtn").classList.add("rec"); $("bleBtn").querySelector("span").textContent = "Tap here, then pick your HM-10 from the list. Don't pair it in iPhone Settings first."; }
+if (!hasSerial && !hasBle) {
+  if (isIOS) $("noApi").innerHTML = "Safari can't use Bluetooth. Install the free <b>Bluefy</b> browser from the App Store, open this same link in Bluefy, then tap <b>Bluetooth LE (HM-10)</b>. iPhones need an <b>HM-10</b> module; HC-05 modules can't connect to iPhones. Demo mode works here.";
+  $("noApi").classList.remove("hidden");
+}
+$("btSerial").addEventListener("click", () => connect("bt"));
+$("usbBtn").addEventListener("click", () => connect("usb"));
+$("bleBtn").addEventListener("click", () => connect("ble"));
+$("demoBtn").addEventListener("click", () => connect("demo"));
+$("disconnectBtn").addEventListener("click", disconnect);
+setConnected(null);
+if (!window.isSecureContext) { const n = $("noApi"); n.innerHTML = "This page must be opened from an <b>https://</b> address (or localhost) for Bluetooth to work. Demo mode still works."; n.classList.remove("hidden"); }
+</script>
+</body>
+</html>
