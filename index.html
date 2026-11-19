@@ -105,10 +105,42 @@
   .log .in { color: var(--text); } .log .out { color: var(--accent); } .log .sys { color: var(--muted); }
 
   nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
-  nav .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+  nav .wrap { display: grid; grid-template-columns: repeat(5, 1fr); }
   nav button { background: none; border: 0; padding: 9px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); font-weight: 600; }
   nav button svg { width: 22px; height: 22px; }
   nav button.active { color: var(--accent); }
+  /* big screens: tabs go at the top, under the title */
+  @media (min-width: 760px) {
+    nav { position: sticky; top: 56px; bottom: auto; border-top: 0; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+    nav button { flex-direction: row; justify-content: center; gap: 8px; font-size: 15px; padding: 12px 0; }
+    nav button.active { box-shadow: inset 0 -3px 0 var(--accent); }
+    body { padding-bottom: 24px; }
+    .toast { bottom: 24px; }
+  }
+
+  /* signs */
+  .signs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .sign { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center; min-width: 0; }
+  .sign.said { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sign svg { width: 92px; height: 103px; display: block; margin: 0 auto 6px; }
+  .sign b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+  .sign p { margin: 4px 0 6px; font-size: 13px; color: var(--muted); }
+  .sign .chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .sign .chip.taught { color: var(--good); } .sign .chip.none { color: var(--warn); }
+  .hs rect { stroke: var(--surface); stroke-width: 2.5; }
+  .hs .palm { fill: color-mix(in srgb, var(--accent) 28%, var(--surface-2)); }
+  .hs .up { fill: var(--accent); }
+  .hs .half { fill: color-mix(in srgb, var(--accent) 62%, var(--surface-2)); }
+  .hs .down { fill: color-mix(in srgb, var(--muted) 70%, var(--surface)); }
+  .hs .q { fill: var(--muted); font: 700 22px system-ui, sans-serif; }
+  .phrase .mini { width: 30px; height: 34px; flex: none; }
+  .phrase .mini svg { width: 30px; height: 34px; display: block; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .key svg { width: 12px; height: 14px; }
+  .key .up { fill: var(--accent); } .key .half { fill: color-mix(in srgb, var(--accent) 60%, var(--surface-2)); } .key .down { fill: color-mix(in srgb, var(--muted) 45%, var(--surface-2)); }
+  .sign .btn { margin-top: 8px; width: 100%; }
+  .signs-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 
   .overlay { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 94%, transparent); display: none; place-items: center; text-align: center; padding: 24px; backdrop-filter: blur(6px); }
   .overlay.show { display: grid; }
@@ -135,6 +167,15 @@
     <div class="pill" id="pill"><i></i><span id="pillText">Not connected</span></div>
   </div>
 </header>
+<nav>
+  <div class="wrap">
+    <button class="active" data-tab="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Talk</button>
+    <button data-tab="signs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Signs</button>
+    <button data-tab="train"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>Train</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+    <button data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Log</button>
+  </div>
+</nav>
 
 <main class="wrap">
   <!-- ============ TALK ============ -->
@@ -168,6 +209,7 @@
     <div class="card say-card" aria-live="assertive">
       <div class="say-text idle" id="sayText">Make a sign…</div>
       <div class="seeing" id="seeing">&nbsp;</div>
+      <div class="seeing" style="margin-top:6px">Not sure which hand shape to make? <button class="signs-link" data-goto="signs">See the signs</button></div>
       <div class="row" style="justify-content:center;margin-top:16px;gap:18px">
         <label class="toggle"><button class="switch" id="speakSwitch" role="switch" aria-checked="true" aria-label="Speak out loud"></button>Speak out loud</label>
         <button class="btn small" id="repeatBtn">Repeat</button>
@@ -185,6 +227,21 @@
     <div class="row hidden" id="disconnectRow" style="justify-content:center">
       <button class="btn danger" id="disconnectBtn">Disconnect</button>
     </div>
+  </section>
+
+  <!-- ============ SIGNS ============ -->
+  <section class="tab" id="tab-signs">
+    <div class="card">
+      <h2>Hand shapes for each phrase</h2>
+      <p class="sub" style="margin-bottom:8px">Make the shape, then hold your hand still for half a second. The glove feels how bent each finger is, so these are simple finger shapes, not full sign language.</p>
+      <div class="key">
+        <span><svg viewBox="0 0 12 12"><rect class="up" x="3" y="0" width="6" height="12" rx="3"/></svg>straight</span>
+        <span><svg viewBox="0 0 12 12"><rect class="half" x="3" y="5" width="6" height="7" rx="3"/></svg>half bent</span>
+        <span><svg viewBox="0 0 12 12"><rect class="down" x="3" y="8" width="6" height="4" rx="2"/></svg>folded down</span>
+      </div>
+      <p class="note" id="signsNote" style="margin-top:10px">Drawn as the back of your right hand, fingers pointing up (thumb on the left). When the glove is connected, a card lights up while the glove sees that shape.</p>
+    </div>
+    <div class="signs" id="signs"></div>
   </section>
 
   <!-- ============ TRAIN ============ -->
@@ -273,14 +330,6 @@
   </section>
 </main>
 
-<nav>
-  <div class="wrap">
-    <button class="active" data-tab="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Talk</button>
-    <button data-tab="train"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>Train</button>
-    <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
-    <button data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Log</button>
-  </div>
-</nav>
 
 <div class="overlay" id="overlay" role="dialog" aria-live="assertive">
   <div><div class="big" id="ovNum"></div><div class="msg" id="ovMsg"></div><div class="hint">Keep your gloved hand like this until the countdown ends</div></div>
@@ -358,7 +407,8 @@ function setConnected(kind) {
   $("connectBox").classList.toggle("hidden", !!kind);
   $("disconnectRow").classList.toggle("hidden", !kind);
   document.querySelectorAll(".need-conn").forEach((b) => (b.disabled = !kind));
-  if (!kind) { $("calBanner").classList.remove("show"); $("infoText").textContent = "Not connected."; state.stream = 0; setSwitch($("rawSwitch"), false); }
+  if (!kind) { $("calBanner").classList.remove("show"); $("infoText").textContent = "Not connected."; state.stream = 0; setSwitch($("rawSwitch"), false); flashSign(-1); }
+  renderSigns();
   keepAwake(!!kind);
 }
 
@@ -381,11 +431,11 @@ function showTab(name) {
   updateStream();
   window.scrollTo(0, 0);
 }
-// live data only while the Train tab is open (keeps Bluetooth quiet otherwise)
+// live data only while the Train or Signs tab is open (keeps Bluetooth quiet otherwise)
 async function updateStream() {
   if (!state.link) return;
   const raw = $("rawSwitch").getAttribute("aria-checked") === "true";
-  const want = currentTab === "train" ? (raw ? 2 : 1) : 0;
+  const want = currentTab === "train" ? (raw ? 2 : 1) : currentTab === "signs" ? 1 : 0;
   if (want !== state.stream) { state.stream = want; await sendCmd("S" + want, { quiet: true }); }
 }
 
@@ -663,6 +713,7 @@ function showLive(body, raw) {
   if (match !== state.liveMatch) {
     state.liveMatch = match;
     document.querySelectorAll(".phrase").forEach((el) => el.classList.toggle("live", +el.dataset.id === match));
+    flashSign(match > 0 ? match : -1);
   }
 }
 
@@ -675,7 +726,8 @@ function renderPhrases() {
       : p.taught === 0 ? `<span>built-in guess · teach it for accuracy</span>`
       : `<span class="trained">taught ${p.taught}×</span>`;
     const name = p.id === 0 ? "Rest (relaxed hand – stays silent)" : p.text;
-    row.innerHTML = `<div class="num">${p.id}</div><div class="txt"><b></b>${status}</div><div class="acts"></div>`;
+    const shp = signInfo(p.id, p.text)[1];
+    row.innerHTML = `<div class="mini" title="#${p.id}">${handSVG(p.taught > 0 && !SIGN_LIB[p.id]?.[1] ? null : shp)}</div><div class="txt"><b></b>${status}</div><div class="acts"></div>`;
     row.querySelector("b").textContent = name;
     const acts = row.querySelector(".acts");
     const teach = mkBtn("Teach", "btn small primary", () => sendCmd("T" + p.id)); acts.appendChild(teach);
@@ -683,7 +735,79 @@ function renderPhrases() {
     if (p.count > 0) acts.appendChild(mkBtn("✕", "btn small danger", () => { if (confirm(`Forget all samples for "${name}"?`)) sendCmd("D" + p.id); }, "Forget"));
     box.appendChild(row);
   }
+  renderSigns();
 }
+// ---------------------------------------------------------------- sign pictures
+// Built-in shapes from the firmware (thumb, index, middle, ring, pinky; 0 = straight, 100 = folded).
+const SIGN_LIB = [
+  ["(rest)", [25,25,25,25,25], "Relaxed, loose hand. The glove stays quiet."],
+  ["Hello", [0,0,0,0,0], "Open hand, every finger straight, like a wave."],
+  ["Yes", [100,100,100,100,100], "Tight fist, thumb over your fingers."],
+  ["No", [80,0,0,100,100], "Index + middle up, thumb folded over the others."],
+  ["Thank you", [0,0,100,100,100], "Thumb + index straight (an L shape)."],
+  ["I love you", [0,0,100,100,0], "Thumb, index and pinky straight."],
+  ["I need help", [80,0,100,100,100], "Point with your index. Everything else folded."],
+  ["I need water", [80,0,0,0,100], "Index, middle, ring up (a W). Thumb holds the pinky."],
+  ["Good", [0,100,100,100,100], "Thumbs up."],
+  ["Okay", [60,60,0,0,0], "Thumb and index touch in a circle, other three up."],
+  ["Call me", [0,100,100,100,0], "Thumb + pinky out, like a phone."],
+  ["I need the bathroom", [80,100,100,100,0], "Only the pinky up."],
+  ["I am hungry", [0,0,0,100,100], "Thumb, index, middle straight. Ring + pinky folded."],
+  ["Nice to meet you", [80,0,100,100,0], "Index + pinky up (rock sign), thumb folded."],
+  ["Goodbye", [80,0,0,0,0], "Four fingers up, thumb folded across the palm."],
+  ["Sorry", null, "No built-in shape. Pick any shape that isn't used above and teach it."],
+  ["Please", null, "No built-in shape. Pick any shape that isn't used above and teach it."],
+];
+function fingerState(v) { return v < 35 ? "up" : v < 75 ? "half" : "down"; }
+function handSVG(shape, cls = "") {
+  const vb = 'viewBox="0 0 100 112"';
+  if (!shape) return `<svg ${vb} class="hs ${cls}" aria-hidden="true"><rect class="palm" x="28" y="56" width="56" height="48" rx="14"/><text class="q" x="56" y="40" text-anchor="middle">?</text></svg>`;
+  const base = 60, cols = [30, 44, 58, 72], tops = [16, 8, 14, 26];
+  let fingers = "", knuckles = "";
+  for (let i = 1; i <= 4; i++) {
+    const st = fingerState(shape[i]), x = cols[i - 1], full = base - tops[i - 1];
+    if (st === "down") { knuckles += `<rect class="down" x="${x}" y="${base - 6}" width="11" height="20" rx="5.5"/>`; continue; }
+    const len = st === "up" ? full : full * 0.5;
+    fingers += `<rect class="${st}" x="${x}" y="${base - len}" width="11" height="${len + 10}" rx="5.5"/>`;
+  }
+  const ts = fingerState(shape[0]);
+  const thumb = ts === "up" ? `<rect class="up" x="22" y="58" width="12" height="34" rx="6" transform="rotate(-38 28 92)"/>`
+    : ts === "half" ? `<rect class="half" x="22" y="66" width="12" height="26" rx="6" transform="rotate(-8 28 92)"/>`
+    : "";
+  const tucked = ts === "down" ? `<rect class="down" x="24" y="80" width="44" height="12" rx="6"/>` : "";
+  return `<svg ${vb} class="hs ${cls}" aria-hidden="true">${thumb}${fingers}<rect class="palm" x="28" y="56" width="56" height="48" rx="14"/>${knuckles}${tucked}</svg>`;
+}
+function signInfo(id, text) {
+  const lib = SIGN_LIB[id];
+  return lib && (!text || lib[0] === text) ? lib : [text || "#" + id, null, "Your own sign. Teach it on the Train tab."];
+}
+function renderSigns() {
+  const box = $("signs"); box.innerHTML = "";
+  const list = state.phrases.length ? state.phrases : SIGN_LIB.map((s, id) => ({ id, text: s[0], count: s[1] ? 1 : 0, taught: 0, offline: true }));
+  for (const p of list) {
+    if (p.id === 0) continue;
+    const [, shape, tip] = signInfo(p.id, p.text);
+    const card = document.createElement("div"); card.className = "sign"; card.dataset.id = p.id;
+    const chip = p.offline ? (shape ? "" : '<span class="chip none">teach it first</span>')
+      : p.taught > 0 ? `<span class="chip taught">taught ${p.taught}×</span>`
+      : p.count > 0 ? '<span class="chip">built-in guess</span>'
+      : '<span class="chip none">not taught yet</span>';
+    const showShape = shape && !(p.taught > 0 && !SIGN_LIB[p.id]?.[1]);
+    card.innerHTML = `${handSVG(showShape ? shape : null)}<b></b><p></p>${chip}`;
+    card.querySelector("b").textContent = p.text;
+    card.querySelector("p").textContent = tip;
+    if (state.link) card.appendChild(mkBtn("Teach this", "btn small", () => { sendCmd("T" + p.id); }));
+    box.appendChild(card);
+  }
+  $("signsNote").textContent = state.link
+    ? "Drawn as the back of your right hand, fingers up (thumb on the left). Try a shape: its card lights up while the glove sees it."
+    : "Drawn as the back of your right hand, fingers pointing up (thumb on the left). Connect the glove and a card lights up while the glove sees that shape.";
+}
+function flashSign(id) {
+  document.querySelectorAll(".sign").forEach((el) => el.classList.toggle("said", +el.dataset.id === id));
+}
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (g) showTab(g.dataset.goto); });
+
 function mkBtn(label, cls, fn, aria) { const b = document.createElement("button"); b.className = cls; b.textContent = label; if (aria) b.setAttribute("aria-label", aria); b.addEventListener("click", fn); return b; }
 $("resetBtn").addEventListener("click", () => { if (confirm("Forget everything you taught and go back to the built-in signs?")) sendCmd("R"); });
 
