@@ -233,7 +233,7 @@
   <section class="tab" id="tab-signs">
     <div class="card">
       <h2>Hand shapes for each phrase</h2>
-      <p class="sub" style="margin-bottom:8px">Make the shape, then hold your hand still for half a second. The glove feels how bent each finger is, so these are simple finger shapes, not full sign language.</p>
+      <p class="sub" style="margin-bottom:8px">Make the shape, then hold your hand still for a moment. The glove feels how bent each finger is, so these are simple finger shapes, not full sign language.</p>
       <div class="key">
         <span><svg viewBox="0 0 12 12"><rect class="up" x="3" y="0" width="6" height="12" rx="3"/></svg>straight</span>
         <span><svg viewBox="0 0 12 12"><rect class="half" x="3" y="5" width="6" height="7" rx="3"/></svg>half bent</span>
@@ -291,7 +291,7 @@
       <h2>Phone voice</h2>
       <p class="sub">How the phone speaks the glove's words.</p>
       <div class="field"><label for="voice">Voice</label><select id="voice"></select></div>
-      <div class="field"><label for="rate">Speed <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1"></div>
+      <div class="field"><label for="rate">Speed <span id="rateVal">1.2</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1.2"></div>
       <div class="field"><label for="pitch">Pitch <span id="pitchVal">1.0</span></label><input type="range" id="pitch" min="0.5" max="1.8" step="0.1" value="1"></div>
       <div class="field"><label class="toggle" style="justify-content:flex-start"><button class="switch" id="promptSwitch" role="switch" aria-checked="true" aria-label="Read instructions aloud"></button>Read calibration/teach instructions aloud</label></div>
       <button class="btn" id="testVoice">Test voice</button>
@@ -349,7 +349,7 @@ const store = {
 };
 const settings = {
   speak: store.get("speak", true), speakPrompts: store.get("speakPrompts", true),
-  voice: store.get("voice", ""), rate: store.get("rate", 1), pitch: store.get("pitch", 1)
+  voice: store.get("voice", ""), rate: store.get("rate", 1.2), pitch: store.get("pitch", 1)
 };
 
 // ---------------------------------------------------------------- state
@@ -369,14 +369,15 @@ function loadVoices() {
 }
 if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function speak(text, { force = false } = {}) {
+function speak(text, { force = false, interrupt = false } = {}) {
   if (!("speechSynthesis" in window) || !text) return;
   if (!settings.speak && !force) return;
   const u = new SpeechSynthesisUtterance(text);
   const v = voices.find((x) => x.voiceURI === settings.voice);
   if (v) { u.voice = v; u.lang = v.lang; }
   u.rate = settings.rate; u.pitch = settings.pitch;
-  if (speechSynthesis.pending) speechSynthesis.cancel(); // don't build up a backlog
+  // a new sign cuts off the old word (no waiting); prompts just drop any backlog
+  if (speechSynthesis.pending || (interrupt && speechSynthesis.speaking)) speechSynthesis.cancel();
   speechSynthesis.speak(u);
 }
 // iOS/Android only allow speech after a tap: speak a silent word during the first tap.
@@ -531,7 +532,7 @@ class DemoLink {
     this.phrases.forEach((p, id) => { if (!p[1] || !this.counts[id]) return; const d = Math.sqrt(p[1].reduce((s, v, i) => s + (v - this.bend[i]) ** 2 * (i ? 1 : 0.8), 0)); if (d < bd) { second = bd; bd = d; best = id; } else if (d < second) second = d; });
     const match = this.cal && bd <= this.tol && second - bd >= 5 ? best : -1;
     if (match === this.match) this.held += 50; else { this.match = match; this.held = 0; if (match === -1) this.lastSaid = -1; }
-    if (!this.busy && match > 0 && this.held >= 500 && match !== this.lastSaid) { this.emit(`SAY:${match}|${this.phrases[match][0]}`); this.lastSaid = match; }
+    if (!this.busy && match > 0 && this.held >= 250 && match !== this.lastSaid) { this.emit(`SAY:${match}|${this.phrases[match][0]}`); this.lastSaid = match; }
     if (match === 0) this.lastSaid = 0;
     this.sinceStream = (this.sinceStream || 0) + 50;
     if (this.stream && this.sinceStream >= 200) {
@@ -677,7 +678,7 @@ function showSay(text, id) {
   if (!text || id === 0) return;
   state.lastSay = text;
   const el = $("sayText"); el.classList.remove("idle", "pop"); void el.offsetWidth; el.textContent = text; el.classList.add("pop");
-  speak(text);
+  speak(text, { interrupt: true });
   const h = $("history"); if (h.querySelector(".empty")) h.innerHTML = "";
   const li = document.createElement("li");
   const t = document.createElement("time"); t.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
