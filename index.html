@@ -154,7 +154,12 @@
   .toast.err { background: var(--bad); color: #fff; } .toast.ok { background: var(--good); color: #fff; }
   .banner { display: none; align-items: center; gap: 10px; justify-content: space-between; } .banner.show { display: flex; }
   .hidden { display: none !important; }
+  .remote-pair { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .remote-qr { background: #fff; padding: 8px; border-radius: 10px; line-height: 0; }
+  .remote-qr img, .remote-qr canvas { width: 132px; height: 132px; }
+  .remote-code { font-size: 32px; font-weight: 700; letter-spacing: 3px; font-variant-numeric: tabular-nums; margin: 4px 0; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -214,6 +219,20 @@
         <button class="btn small" id="clearHist">Clear</button>
       </div>
       <ul class="history" id="history"><li class="empty">Nothing said yet.</li></ul>
+    </div>
+
+    <div class="card" id="remoteCard">
+      <h2>Phone remote</h2>
+      <p class="sub" style="margin:0">Press a button on your phone and this laptop says it out loud.</p>
+      <div class="remote-pair">
+        <div class="remote-qr" id="remoteQr" aria-hidden="true"></div>
+        <div>
+          <div class="seeing">Scan with your phone camera, or open<br><b id="remoteUrl"></b><br>on your phone and type this code:</div>
+          <div class="remote-code" id="remoteCode">------</div>
+          <div class="seeing" id="remoteStatus">Connecting…</div>
+        </div>
+      </div>
+      <p class="note warn hidden" id="remoteTap" style="margin:12px 0 0">Click anywhere on this page once, so it's allowed to speak.</p>
     </div>
 
     <div class="row hidden" id="disconnectRow" style="justify-content:center">
@@ -831,6 +850,47 @@ document.addEventListener("click", (e) => {
 });
 $("cmdForm").addEventListener("submit", (e) => { e.preventDefault(); const v = $("cmdInput").value.trim(); if (v) { sendCmd(v.toUpperCase()); $("cmdInput").value = ""; } });
 
+// ---------------------------------------------------------------- phone remote
+// phone.html sends words through ntfy.sh (a free message relay). This page listens
+// on a private channel named after its 6-digit code and speaks whatever arrives.
+const RELAY = "https://ntfy.sh/";
+const remote = { code: store.get("remoteCode", ""), greeted: false };
+if (!/^\d{6}$/.test(remote.code)) { remote.code = String(100000 + Math.floor(Math.random() * 900000)); store.set("remoteCode", remote.code); }
+const remoteTopic = (dir) => `signglove-${remote.code}-${dir}`;
+const hasActivation = () => !navigator.userActivation || navigator.userActivation.hasBeenActive;
+function sendToPhone(obj) {
+  fetch(RELAY + remoteTopic("back") + "?cache=no&firebase=no", { method: "POST", body: JSON.stringify(obj) }).catch(() => {});
+}
+function startRemote() {
+  const phoneUrl = new URL("phone.html", location.href); phoneUrl.hash = remote.code;
+  $("remoteCode").textContent = remote.code.replace(/(\d{3})(\d{3})/, "$1 $2");
+  $("remoteUrl").textContent = phoneUrl.host + phoneUrl.pathname;
+  try { new QRCode($("remoteQr"), { text: phoneUrl.href, width: 264, height: 264, correctLevel: QRCode.CorrectLevel.M }); }
+  catch { $("remoteQr").classList.add("hidden"); }
+  if (!hasActivation()) $("remoteTap").classList.remove("hidden");
+  if (!("EventSource" in window)) { $("remoteStatus").textContent = "This browser can't use the phone remote."; return; }
+  const es = new EventSource(RELAY + remoteTopic("say") + "/sse");
+  es.onopen = () => {
+    $("remoteStatus").textContent = "Ready. Waiting for your phone…";
+    if (!remote.greeted) { remote.greeted = true; sendToPhone({ here: 1 }); }
+  };
+  es.onerror = () => { $("remoteStatus").textContent = "No internet? Trying again…"; };
+  es.onmessage = (e) => {
+    let m, msg;
+    try { m = JSON.parse(e.data); msg = JSON.parse(m.message); } catch { return; }
+    if (m.event !== "message" || Date.now() / 1000 - m.time > 120 || !msg) return;
+    $("remoteStatus").textContent = "Phone connected ✓";
+    if (msg.ping) { sendToPhone({ here: 1 }); return; }
+    if (typeof msg.say !== "string") return;
+    const text = msg.say.trim().slice(0, 80);
+    if (!text) return;
+    logLine("PHONE: " + text, "sys");
+    showSay(text, -1);
+    if (!hasActivation()) { $("remoteTap").classList.remove("hidden"); toast("Click this page once so it can speak", "err"); }
+  };
+}
+document.addEventListener("pointerdown", () => { unlockSpeech(); $("remoteTap").classList.add("hidden"); }, { capture: true });
+
 // ---------------------------------------------------------------- startup
 const hasSerial = "serial" in navigator;
 const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -840,6 +900,7 @@ $("usbBtn").addEventListener("click", () => connect("usb"));
 $("demoBtn").addEventListener("click", () => connect("demo"));
 $("disconnectBtn").addEventListener("click", disconnect);
 setConnected(null);
+startRemote();
 if (!window.isSecureContext) { const n = $("noApi"); n.innerHTML = "This page must be opened from an <b>https://</b> address (or localhost) for the USB cable to work. Demo mode still works."; n.classList.remove("hidden"); }
 </script>
 </body>
