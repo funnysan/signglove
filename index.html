@@ -182,23 +182,15 @@
   <section class="tab active" id="tab-talk">
     <div id="connectBox">
       <h3 class="label" style="margin-top:4px">Connect your glove</h3>
-      <button class="connect-opt rec hidden" id="btSerial">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></div>
-        <div><b>Bluetooth (HC-05 / HC-06)</b><span>Android phone with Chrome, or a laptop. Pair "HC-05" in Bluetooth settings first (PIN 1234).</span></div>
-      </button>
-      <button class="connect-opt hidden" id="bleBtn">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/><path d="M20.8 9.5a6 6 0 0 1 0 5M2 12h1"/></svg></div>
-        <div><b>Bluetooth LE (HM-10)</b><span>For iPhone (in the Bluefy browser) or Android, if you swap in an HM-10 module.</span></div>
-      </button>
-      <button class="connect-opt hidden" id="usbBtn">
+      <button class="connect-opt rec hidden" id="usbBtn">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14M8 6l4-4 4 4M7 12v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><circle cx="12" cy="19" r="3"/></svg></div>
-        <div><b>USB cable</b><span>Glove plugged into this computer. Good for testing.</span></div>
+        <div><b>USB cable</b><span>Plug the glove into this computer, then tap here.</span></div>
       </button>
       <button class="connect-opt" id="demoBtn">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
         <div><b>Demo mode</b><span>No glove needed. A pretend hand makes signs so you can try the app.</span></div>
       </button>
-      <p class="note warn hidden" id="noApi">This browser can't talk to the glove. On <b>Android</b>, open this page in <b>Chrome</b> (version 137 or newer). On <b>iPhone</b>, Apple blocks HC-05 modules: use an HM-10 module and the free <b>Bluefy</b> browser. Demo mode still works.</p>
+      <p class="note warn hidden" id="noApi">This browser can't talk to the glove. Open this page in <b>Chrome</b> on a computer and plug the glove in with the USB cable. Demo mode still works.</p>
     </div>
 
     <div class="card banner" id="calBanner">
@@ -288,8 +280,8 @@
   <!-- ============ SETTINGS ============ -->
   <section class="tab" id="tab-settings">
     <div class="card">
-      <h2>Phone voice</h2>
-      <p class="sub">How the phone speaks the glove's words.</p>
+      <h2>Voice</h2>
+      <p class="sub">How the app speaks the glove's words.</p>
       <div class="field"><label for="voice">Voice</label><select id="voice"></select></div>
       <div class="field"><label for="rate">Speed <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1"></div>
       <div class="field"><label for="pitch">Pitch <span id="pitchVal">1.0</span></label><input type="range" id="pitch" min="0.5" max="1.8" step="0.1" value="1"></div>
@@ -573,17 +565,9 @@ async function connect(kind) {
   unlockSpeech();
   try {
     let link;
-    if (kind === "bt") {
-      const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [SPP_UUID] });
-      link = new SerialLink(port, 9600);
-    } else if (kind === "usb") {
+    if (kind === "usb") {
       const port = await navigator.serial.requestPort();
       link = new SerialLink(port, 115200);
-    } else if (kind === "ble") {
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [0xffe0] }, { namePrefix: "HM" }, { namePrefix: "BT" }, { namePrefix: "MLT" }, { namePrefix: "DSD" }, { namePrefix: "HC" }, { namePrefix: "JDY" }, { namePrefix: "AT-09" }, { namePrefix: "CC41" }],
-        optionalServices: [0xffe0] });
-      link = new BleLink(device);
     } else link = new DemoLink();
 
     await link.open(onLine, () => { toast("Glove disconnected", "err"); logLine("— disconnected —", "sys"); state.link = null; setConnected(null); });
@@ -848,23 +832,15 @@ document.addEventListener("click", (e) => {
 $("cmdForm").addEventListener("submit", (e) => { e.preventDefault(); const v = $("cmdInput").value.trim(); if (v) { sendCmd(v.toUpperCase()); $("cmdInput").value = ""; } });
 
 // ---------------------------------------------------------------- startup
-const hasSerial = "serial" in navigator, hasBle = "bluetooth" in navigator;
+const hasSerial = "serial" in navigator;
 const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-if (hasSerial) { $("btSerial").classList.remove("hidden"); if (!isMobile) $("usbBtn").classList.remove("hidden"); }
-if (hasBle) $("bleBtn").classList.remove("hidden");
-if (isIOS && hasBle) { $("bleBtn").classList.add("rec"); $("bleBtn").querySelector("span").textContent = "Tap here, then pick your HM-10 from the list. Don't pair it in iPhone Settings first."; }
-if (!hasSerial && !hasBle) {
-  if (isIOS) $("noApi").innerHTML = "Safari can't use Bluetooth. Install the free <b>Bluefy</b> browser from the App Store, open this same link in Bluefy, then tap <b>Bluetooth LE (HM-10)</b>. iPhones need an <b>HM-10</b> module; HC-05 modules can't connect to iPhones. Demo mode works here.";
-  $("noApi").classList.remove("hidden");
-}
-$("btSerial").addEventListener("click", () => connect("bt"));
+if (hasSerial && !isMobile) $("usbBtn").classList.remove("hidden");
+else $("noApi").classList.remove("hidden");
 $("usbBtn").addEventListener("click", () => connect("usb"));
-$("bleBtn").addEventListener("click", () => connect("ble"));
 $("demoBtn").addEventListener("click", () => connect("demo"));
 $("disconnectBtn").addEventListener("click", disconnect);
 setConnected(null);
-if (!window.isSecureContext) { const n = $("noApi"); n.innerHTML = "This page must be opened from an <b>https://</b> address (or localhost) for Bluetooth to work. Demo mode still works."; n.classList.remove("hidden"); }
+if (!window.isSecureContext) { const n = $("noApi"); n.innerHTML = "This page must be opened from an <b>https://</b> address (or localhost) for the USB cable to work. Demo mode still works."; n.classList.remove("hidden"); }
 </script>
 </body>
 </html>
