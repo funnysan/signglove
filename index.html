@@ -135,12 +135,6 @@
   .hs .q { fill: var(--muted); font: 700 22px system-ui, sans-serif; }
   .phrase .mini { width: 30px; height: 34px; flex: none; }
   .phrase .mini svg { width: 30px; height: 34px; display: block; }
-  .seg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 6px; }
-  .seg button { border: 0; background: transparent; color: var(--muted); font: 600 14px system-ui, sans-serif; padding: 7px 16px; border-radius: 999px; cursor: pointer; }
-  .seg button.on { background: var(--accent); color: var(--accent-ink); }
-  .signs-head { grid-column: 1 / -1; margin: 12px 2px 0; font-size: 17px; }
-  .signs-head small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .phrase-head { padding: 16px 0 6px; font-weight: 700; font-size: 14px; color: var(--muted); border-bottom: 1px solid var(--line); }
   .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
   .key span { display: inline-flex; align-items: center; gap: 6px; }
   .key svg { width: 12px; height: 14px; }
@@ -213,13 +207,7 @@
     </div>
 
     <div class="card say-card" aria-live="assertive">
-      <div class="seg" role="group" aria-label="What the glove listens for"><button id="modeWords" class="on" aria-pressed="true">Words</button><button id="modeLetters" aria-pressed="false">Letters (spell)</button></div>
       <div class="say-text idle" id="sayText">Make a sign…</div>
-      <div class="row hidden" id="spellRow" style="justify-content:center;margin:2px 0 6px">
-        <button class="btn small primary" id="sayWordBtn">Say word</button>
-        <button class="btn small" id="backBtn" aria-label="Delete last letter">⌫ Undo letter</button>
-        <button class="btn small" id="clearWordBtn">Clear</button>
-      </div>
       <div class="seeing" id="seeing">&nbsp;</div>
       <div class="seeing" style="margin-top:6px">Not sure which hand shape to make? <button class="signs-link" data-goto="signs">See the signs</button></div>
       <div class="row" style="justify-content:center;margin-top:16px;gap:18px">
@@ -244,8 +232,8 @@
   <!-- ============ SIGNS ============ -->
   <section class="tab" id="tab-signs">
     <div class="card">
-      <h2>Hand shapes for each phrase and letter</h2>
-      <p class="sub" style="margin-bottom:8px">Make the shape, then hold your hand still for a moment. The glove feels how bent each finger is, so these are simple finger shapes, not full sign language.</p>
+      <h2>Hand shapes for each phrase</h2>
+      <p class="sub" style="margin-bottom:8px">Make the shape, then hold your hand still for half a second. The glove feels how bent each finger is, so these are simple finger shapes, not full sign language.</p>
       <div class="key">
         <span><svg viewBox="0 0 12 12"><rect class="up" x="3" y="0" width="6" height="12" rx="3"/></svg>straight</span>
         <span><svg viewBox="0 0 12 12"><rect class="half" x="3" y="5" width="6" height="7" rx="3"/></svg>half bent</span>
@@ -303,7 +291,7 @@
       <h2>Phone voice</h2>
       <p class="sub">How the phone speaks the glove's words.</p>
       <div class="field"><label for="voice">Voice</label><select id="voice"></select></div>
-      <div class="field"><label for="rate">Speed <span id="rateVal">1.2</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1.2"></div>
+      <div class="field"><label for="rate">Speed <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.5" max="1.6" step="0.1" value="1"></div>
       <div class="field"><label for="pitch">Pitch <span id="pitchVal">1.0</span></label><input type="range" id="pitch" min="0.5" max="1.8" step="0.1" value="1"></div>
       <div class="field"><label class="toggle" style="justify-content:flex-start"><button class="switch" id="promptSwitch" role="switch" aria-checked="true" aria-label="Read instructions aloud"></button>Read calibration/teach instructions aloud</label></div>
       <button class="btn" id="testVoice">Test voice</button>
@@ -361,13 +349,11 @@ const store = {
 };
 const settings = {
   speak: store.get("speak", true), speakPrompts: store.get("speakPrompts", true),
-  voice: store.get("voice", ""), rate: store.get("rate", 1.2), pitch: store.get("pitch", 1),
-  mode: store.get("mode", 0)           // 0 = words, 1 = letters (spelling)
+  voice: store.get("voice", ""), rate: store.get("rate", 1), pitch: store.get("pitch", 1)
 };
-const FIRST_LETTER = 17;               // phrase ids 17..42 are the letters A..Z
 
 // ---------------------------------------------------------------- state
-const state = { link: null, kind: null, phrases: [], phraseBuf: [], cfg: null, stream: 0, lastSay: "", liveMatch: -1, spell: "" };
+const state = { link: null, kind: null, phrases: [], phraseBuf: [], cfg: null, stream: 0, lastSay: "", liveMatch: -1 };
 
 // ---------------------------------------------------------------- speech
 let voices = [];
@@ -383,15 +369,14 @@ function loadVoices() {
 }
 if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function speak(text, { force = false, interrupt = false } = {}) {
+function speak(text, { force = false } = {}) {
   if (!("speechSynthesis" in window) || !text) return;
   if (!settings.speak && !force) return;
   const u = new SpeechSynthesisUtterance(text);
   const v = voices.find((x) => x.voiceURI === settings.voice);
   if (v) { u.voice = v; u.lang = v.lang; }
   u.rate = settings.rate; u.pitch = settings.pitch;
-  // a new sign cuts off the old word (no waiting); prompts just drop any backlog
-  if (speechSynthesis.pending || (interrupt && speechSynthesis.speaking)) speechSynthesis.cancel();
+  if (speechSynthesis.pending) speechSynthesis.cancel(); // don't build up a backlog
   speechSynthesis.speak(u);
 }
 // iOS/Android only allow speech after a tap: speak a silent word during the first tap.
@@ -515,9 +500,7 @@ class BleLink {
 // A pretend glove that speaks the same protocol as the real firmware.
 class DemoLink {
   constructor() {
-    this.phrases = SIGN_LIB.map((s) => [s[0], s[1] ? [...s[1]] : null]); // same built-in shapes as the firmware
-    this.mode = 0;
-    this.letterSeq = [18, 31, 40, 0, 0, 0]; // spells B-O-X, then pauses
+    this.phrases = [["(rest)",[25,25,25,25,25]],["Hello",[0,0,0,0,0]],["Yes",[100,100,100,100,100]],["No",[80,0,0,100,100]],["Thank you",[0,0,100,100,100]],["I love you",[0,0,100,100,0]],["I need help",[80,0,100,100,100]],["I need water",[80,0,0,0,100]],["Good",[0,100,100,100,100]],["Okay",[60,60,0,0,0]],["Call me",[0,100,100,100,0]],["I need the bathroom",[80,100,100,100,0]],["I am hungry",[0,0,0,100,100]],["Nice to meet you",[80,0,100,100,0]],["Goodbye",[80,0,0,0,0]],["Sorry",null],["Please",null]];
     this.counts = this.phrases.map((p) => (p[1] ? 1 : 0));
     this.defs = [...this.counts];
     this.cal = false; this.stream = 0; this.tol = 40; this.busy = false;
@@ -528,7 +511,7 @@ class DemoLink {
   async open(onLine) {
     this.emit = (l) => setTimeout(() => onLine(l), 25);
     this.emit("HELLO:SignGlove 1.0 (demo)");
-    this.emit(`CFG:0,1,40,${this.counts.reduce((a, b) => a + b)},0,0`);
+    this.emit("CFG:0,1,40,15,0");
     this.emit("MSG:Not calibrated yet - send C (or tap Calibrate in the app)");
     this.tick = setInterval(() => this.update(), 50);
     this.poseTimer = setInterval(() => this.nextPose(), 2600);
@@ -536,8 +519,7 @@ class DemoLink {
   }
   nextPose() {
     if (this.busy) return;
-    const seq = this.mode ? this.letterSeq : this.seq;
-    const id = seq[this.step++ % seq.length];
+    const id = this.seq[this.step++ % this.seq.length];
     this.target = this.phrases[id][1].map((v) => Math.max(0, Math.min(100, v + (Math.random() * 14 - 7))));
     this.targetId = id;
   }
@@ -546,10 +528,10 @@ class DemoLink {
     this.roll = Math.round(Math.sin(Date.now() / 2400) * 12); this.pitch = Math.round(Math.cos(Date.now() / 3100) * 8);
     // nearest phrase
     let best = -1, bd = 1e9, second = 1e9;
-    this.phrases.forEach((p, id) => { if (!p[1] || !this.counts[id]) return; if (id !== 0 && (id >= FIRST_LETTER) !== (this.mode === 1)) return; const d = Math.sqrt(p[1].reduce((s, v, i) => s + (v - this.bend[i]) ** 2 * (i ? 1 : 0.8), 0)); if (d < bd) { second = bd; bd = d; best = id; } else if (d < second) second = d; });
+    this.phrases.forEach((p, id) => { if (!p[1] || !this.counts[id]) return; const d = Math.sqrt(p[1].reduce((s, v, i) => s + (v - this.bend[i]) ** 2 * (i ? 1 : 0.8), 0)); if (d < bd) { second = bd; bd = d; best = id; } else if (d < second) second = d; });
     const match = this.cal && bd <= this.tol && second - bd >= 5 ? best : -1;
     if (match === this.match) this.held += 50; else { this.match = match; this.held = 0; if (match === -1) this.lastSaid = -1; }
-    if (!this.busy && match > 0 && this.held >= 250 && match !== this.lastSaid) { this.emit(`SAY:${match}|${this.phrases[match][0]}`); this.lastSaid = match; }
+    if (!this.busy && match > 0 && this.held >= 500 && match !== this.lastSaid) { this.emit(`SAY:${match}|${this.phrases[match][0]}`); this.lastSaid = match; }
     if (match === 0) this.lastSaid = 0;
     this.sinceStream = (this.sinceStream || 0) + 50;
     if (this.stream && this.sinceStream >= 200) {
@@ -566,7 +548,7 @@ class DemoLink {
       const open = [0,0,0,0,0], fist = [100,100,100,100,100];
       await this.run([["PROMPT:OPEN your hand - fingers straight and flat ... 3", 1000, open], ["PROMPT:OPEN your hand - fingers straight and flat ... 2", 1000], ["PROMPT:OPEN your hand - fingers straight and flat ... 1", 1000], ["PROMPT:Hold still... reading OPEN hand", 1500],
         ["PROMPT:Make a tight FIST - thumb over your fingers ... 3", 1000, fist], ["PROMPT:Make a tight FIST - thumb over your fingers ... 2", 1000], ["PROMPT:Make a tight FIST - thumb over your fingers ... 1", 1000], ["PROMPT:Hold still... reading FIST", 1500], ["PROMPT_END", 0]]);
-      this.cal = true; this.emit("OK:Calibration done"); this.emit(`CFG:1,1,${this.tol},${this.counts.reduce((a, b) => a + b)},0,${this.mode}`);
+      this.cal = true; this.emit("OK:Calibration done"); this.emit(`CFG:1,1,${this.tol},${this.counts.reduce((a, b) => a + b)},0`);
     } else if (c === "T" && P[n]) {
       const shape = P[n][1] || [40,100,100,100,100];
       await this.run([[`PROMPT:Make the sign for "${P[n][0]}" ... 3`, 1000, shape], [`PROMPT:Make the sign for "${P[n][0]}" ... 2`, 1000], [`PROMPT:Make the sign for "${P[n][0]}" ... 1`, 1000], [`PROMPT:Hold "${P[n][0]}" still...`, 1200], ["PROMPT_END", 0]]);
@@ -574,13 +556,12 @@ class DemoLink {
       this.counts[n] -= this.defs[n]; this.defs[n] = 0; this.counts[n] += 1; this.lastSaid = n;
       this.emit(`OK:Learned "${P[n][0]}" (${this.counts[n]} samples)`);
     } else if (c === "D" && P[n]) { this.counts[n] = 0; this.defs[n] = 0; this.emit(`OK:Deleted signs for "${P[n][0]}"`); }
-    else if (c === "R") { this.counts = SIGN_LIB.map((s) => (s[1] ? 1 : 0)); this.defs = [...this.counts]; this.emit("OK:All signs reset to defaults"); }
+    else if (c === "R") { this.counts = P.map((p, i) => (i < 15 ? 1 : 0)); this.defs = [...this.counts]; this.emit("OK:All signs reset to defaults"); }
     else if (c === "L") { P.forEach((p, i) => this.emit(`PH:${i}|${p[0]}|${this.counts[i]}|${this.defs[i]}`)); this.emit("PHEND"); }
     else if (c === "P" && P[n]) this.emit(`SAY:${n}|${P[n][0]}`);
-    else if (c === "M") { this.mode = n === 1 ? 1 : 0; this.step = 0; this.lastSaid = -1; this.emit("MODE:" + this.mode); this.emit(this.mode ? "OK:Letters mode (spelling)" : "OK:Words mode"); }
     else if (c === "S") { this.stream = Math.max(0, Math.min(2, n || 0)); this.emit("OK:stream " + this.stream); }
     else if (c === "G") { this.tol = Math.max(10, Math.min(100, n || 40)); this.emit("OK:tolerance " + this.tol); }
-    else if (c === "I") { this.emit("HELLO:SignGlove 1.0 (demo)"); this.emit(`MSG:calibrated=${this.cal ? "yes" : "NO (send C)"} mpu6050=ok signs=${this.counts.reduce((a, b) => a + b)}/110 tolerance=${this.tol}`); this.emit(`CFG:${this.cal ? 1 : 0},1,${this.tol},${this.counts.reduce((a, b) => a + b)},0,${this.mode}`); }
+    else if (c === "I") { this.emit("HELLO:SignGlove 1.0 (demo)"); this.emit(`MSG:calibrated=${this.cal ? "yes" : "NO (send C)"} mpu6050=ok signs=${this.counts.reduce((a, b) => a + b)}/110 tolerance=${this.tol}`); this.emit(`CFG:${this.cal ? 1 : 0},1,${this.tol},${this.counts.reduce((a, b) => a + b)},0`); }
     else if (c === "?" || c === "H") { this.emit("MSG:C=calibrate  T<n>=train  D<n>=delete  R=reset defaults  L=list"); this.emit("MSG:P<n>=say  S0/S1/S2=stream off/bend/raw  G<n>=tolerance  V<n>=volume  I=info"); }
     else this.emit("ERR:Unknown command - send ? for help");
   }
@@ -613,7 +594,6 @@ async function connect(kind) {
     await new Promise((r) => setTimeout(r, kind === "usb" ? 2200 : 300));
     await sendCmd("I", { quiet: true });
     await sendCmd("L", { quiet: true });
-    await sendCmd("M" + settings.mode, { quiet: true });
     updateStream();
   } catch (e) {
     if (e && e.name === "NotFoundError") return; // user closed the picker
@@ -677,7 +657,7 @@ function onLine(line) {
     case "PHEND": state.phrases = state.phraseBuf; state.phraseBuf = []; renderPhrases(); break;
     case "PROMPT": showPrompt(body); break;
     case "PROMPT_END": hidePrompt(); break;
-    case "OK": if (!/^stream|mode/i.test(body)) toast(body, "ok"); if (/Learned|Deleted|reset/i.test(body)) sendCmd("L", { quiet: true }); if (/Calibration/i.test(body)) sendCmd("I", { quiet: true }); break;
+    case "OK": if (!/^stream/.test(body)) toast(body, "ok"); if (/Learned|Deleted|reset/i.test(body)) sendCmd("L", { quiet: true }); if (/Calibration/i.test(body)) sendCmd("I", { quiet: true }); break;
     case "ERR": toast(body, "err"); break;
     case "HELLO": $("infoText").textContent = body; break;
     case "MSG": if (/calibrated=/.test(body)) $("infoText").textContent = body.replace(/ (?=\w+=)/g, " · "); break;
@@ -695,10 +675,9 @@ function onLine(line) {
 // ---------------------------------------------------------------- talk view
 function showSay(text, id) {
   if (!text || id === 0) return;
-  if (id >= FIRST_LETTER) { addLetter(text); return; }
   state.lastSay = text;
   const el = $("sayText"); el.classList.remove("idle", "pop"); void el.offsetWidth; el.textContent = text; el.classList.add("pop");
-  speak(text, { interrupt: true });
+  speak(text);
   const h = $("history"); if (h.querySelector(".empty")) h.innerHTML = "";
   const li = document.createElement("li");
   const t = document.createElement("time"); t.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -707,41 +686,6 @@ function showSay(text, id) {
   while (h.children.length > 50) h.removeChild(h.lastChild);
   if (navigator.vibrate) navigator.vibrate(30);
 }
-// ---------------------------------------------------------------- spelling (letters mode)
-const SPELL_PAUSE_MS = 4000; // stop signing for 4 s and the whole word is said
-let spellTimer;
-function showSpell() {
-  const el = $("sayText"); el.classList.remove("idle", "pop"); void el.offsetWidth;
-  if (state.spell) { el.textContent = state.spell; el.classList.add("pop"); }
-  else { el.textContent = "Spell a word…"; el.classList.add("idle"); }
-}
-function addLetter(ch) {
-  state.spell += ch; showSpell();
-  speak(ch, { interrupt: true });
-  if (navigator.vibrate) navigator.vibrate(20);
-  clearTimeout(spellTimer); spellTimer = setTimeout(finishWord, SPELL_PAUSE_MS);
-}
-function finishWord() {
-  clearTimeout(spellTimer);
-  const w = state.spell; if (!w) return;
-  state.spell = "";
-  showSay(w.length > 1 ? w[0] + w.slice(1).toLowerCase() : w, -1); // says it + adds it to the conversation
-}
-function setMode(m, send = true) {
-  settings.mode = m; store.set("mode", m);
-  for (const [id, on] of [["modeWords", m === 0], ["modeLetters", m === 1]]) { $(id).classList.toggle("on", on); $(id).setAttribute("aria-pressed", on); }
-  $("spellRow").classList.toggle("hidden", m !== 1);
-  clearTimeout(spellTimer); state.spell = "";
-  const el = $("sayText"); el.classList.remove("pop"); el.classList.add("idle");
-  el.textContent = m ? "Spell a word…" : "Make a sign…";
-  if (send && state.link) sendCmd("M" + m);
-}
-$("modeWords").addEventListener("click", () => { unlockSpeech(); setMode(0); });
-$("modeLetters").addEventListener("click", () => { unlockSpeech(); setMode(1); });
-$("sayWordBtn").addEventListener("click", () => { unlockSpeech(); finishWord(); });
-$("backBtn").addEventListener("click", () => { state.spell = state.spell.slice(0, -1); showSpell(); clearTimeout(spellTimer); if (state.spell) spellTimer = setTimeout(finishWord, SPELL_PAUSE_MS); });
-$("clearWordBtn").addEventListener("click", () => { clearTimeout(spellTimer); state.spell = ""; showSpell(); });
-setMode(settings.mode, false);
 $("repeatBtn").addEventListener("click", () => { unlockSpeech(); if (state.lastSay) speak(state.lastSay, { force: true }); });
 $("clearHist").addEventListener("click", () => { $("history").innerHTML = '<li class="empty">Nothing said yet.</li>'; });
 
@@ -777,14 +721,13 @@ function showLive(body, raw) {
 function renderPhrases() {
   const box = $("phrases"); box.innerHTML = "";
   for (const p of state.phrases) {
-    if (p.id === FIRST_LETTER) { const h = document.createElement("div"); h.className = "phrase-head"; h.textContent = "Alphabet (used when the Talk tab is set to Letters)"; box.appendChild(h); }
     const row = document.createElement("div"); row.className = "phrase"; row.dataset.id = p.id;
     const status = p.count === 0 ? '<span class="none">not taught yet</span>'
       : p.taught === 0 ? `<span>built-in guess · teach it for accuracy</span>`
       : `<span class="trained">taught ${p.taught}×</span>`;
-    const name = p.id === 0 ? "Rest (relaxed hand – stays silent)" : p.id >= FIRST_LETTER ? "Letter " + p.text : p.text;
-    const info = signInfo(p.id, p.text);
-    row.innerHTML = `<div class="mini" title="#${p.id}">${handSVG(info[3] || (p.taught > 0 && !info[1] ? null : info[1]), "", info[4])}</div><div class="txt"><b></b>${status}</div><div class="acts"></div>`;
+    const name = p.id === 0 ? "Rest (relaxed hand – stays silent)" : p.text;
+    const shp = signInfo(p.id, p.text)[1];
+    row.innerHTML = `<div class="mini" title="#${p.id}">${handSVG(p.taught > 0 && !SIGN_LIB[p.id]?.[1] ? null : shp)}</div><div class="txt"><b></b>${status}</div><div class="acts"></div>`;
     row.querySelector("b").textContent = name;
     const acts = row.querySelector(".acts");
     const teach = mkBtn("Teach", "btn small primary", () => sendCmd("T" + p.id)); acts.appendChild(teach);
@@ -814,36 +757,9 @@ const SIGN_LIB = [
   ["Goodbye", [80,0,0,0,0], "Four fingers up, thumb folded across the palm."],
   ["Sorry", null, "No built-in shape. Pick any shape that isn't used above and teach it."],
   ["Please", null, "No built-in shape. Pick any shape that isn't used above and teach it."],
-  // Alphabet (ids 17..42). [text, built-in shape or null, tip, picture shape, picture turn in degrees]
-  ["A", [10,100,100,100,100], "Fist, thumb straight up the side of your hand."],
-  ["B", [90,0,0,0,0], "Flat hand, fingers together, thumb folded across your palm."],
-  ["C", [30,45,45,45,45], "Curve your whole hand into a C.", [40,45,45,45,45]],
-  ["D", [70,0,90,90,90], "Index up. The other fingers curl round to touch your thumb."],
-  ["E", null, "Curl every finger down onto your tucked thumb. Teach it (it can look like S).", [100,80,80,80,80]],
-  ["F", [60,60,0,0,0], "Thumb and index make a circle, the other three stand up."],
-  ["G", null, "Like L, but turn your hand so the index points sideways. Teach it.", [0,0,100,100,100], -90],
-  ["H", null, "Index + middle together, pointing sideways. Teach it.", [80,0,0,100,100], -90],
-  ["I", [80,100,100,100,0], "Only the pinky up."],
-  ["J", null, "Pinky up, then twist your hand. Teach the end position.", [80,100,100,100,0]],
-  ["K", [10,0,0,100,100], "Index + middle up, thumb up between them."],
-  ["L", [0,0,100,100,100], "Thumb + index straight, an L shape."],
-  ["M", null, "Thumb tucked under three fingers. Teach it (it can look like S).", [100,100,100,100,100]],
-  ["N", null, "Thumb tucked under two fingers. Teach it (it can look like S).", [100,100,100,100,100]],
-  ["O", [50,60,60,60,60], "All fingers curve round to touch your thumb, an O."],
-  ["P", null, "Like K, but pointing down. Teach it.", [10,0,0,100,100], 180],
-  ["Q", null, "Like G, but pointing down. Teach it.", [0,0,100,100,100], 180],
-  ["R", null, "Cross your index over your middle. Teach it (it can look like U or V).", [80,0,0,100,100]],
-  ["S", [90,100,100,100,100], "Fist, thumb across the front of your fingers."],
-  ["T", null, "Thumb poked up between index and middle. Teach it (it can look like S).", [90,100,100,100,100]],
-  ["U", null, "Index + middle up, pressed together. Teach it (it can look like V).", [80,0,0,100,100]],
-  ["V", [80,0,0,100,100], "Index + middle up, spread apart."],
-  ["W", [80,0,0,0,100], "Index, middle and ring up. Thumb holds the pinky."],
-  ["X", [80,50,100,100,100], "Index bent like a hook, the rest folded."],
-  ["Y", [0,100,100,100,0], "Thumb + pinky out."],
-  ["Z", null, "Point with your index and draw a Z. Teach the end position.", [80,0,100,100,100]],
 ];
 function fingerState(v) { return v < 35 ? "up" : v < 75 ? "half" : "down"; }
-function handSVG(shape, cls = "", rot = 0) {
+function handSVG(shape, cls = "") {
   const vb = 'viewBox="0 0 100 112"';
   if (!shape) return `<svg ${vb} class="hs ${cls}" aria-hidden="true"><rect class="palm" x="28" y="56" width="56" height="48" rx="14"/><text class="q" x="56" y="40" text-anchor="middle">?</text></svg>`;
   const base = 60, cols = [30, 44, 58, 72], tops = [16, 8, 14, 26];
@@ -859,9 +775,7 @@ function handSVG(shape, cls = "", rot = 0) {
     : ts === "half" ? `<rect class="half" x="22" y="66" width="12" height="26" rx="6" transform="rotate(-8 28 92)"/>`
     : "";
   const tucked = ts === "down" ? `<rect class="down" x="24" y="80" width="44" height="12" rx="6"/>` : "";
-  const body = `${thumb}${fingers}<rect class="palm" x="28" y="56" width="56" height="48" rx="14"/>${knuckles}${tucked}`;
-  const turned = rot ? `<g transform="translate(50 56) rotate(${rot}) scale(0.85) translate(-56 -58)">${body}</g>` : body;
-  return `<svg ${vb} class="hs ${cls}" aria-hidden="true">${turned}</svg>`;
+  return `<svg ${vb} class="hs ${cls}" aria-hidden="true">${thumb}${fingers}<rect class="palm" x="28" y="56" width="56" height="48" rx="14"/>${knuckles}${tucked}</svg>`;
 }
 function signInfo(id, text) {
   const lib = SIGN_LIB[id];
@@ -870,19 +784,16 @@ function signInfo(id, text) {
 function renderSigns() {
   const box = $("signs"); box.innerHTML = "";
   const list = state.phrases.length ? state.phrases : SIGN_LIB.map((s, id) => ({ id, text: s[0], count: s[1] ? 1 : 0, taught: 0, offline: true }));
-  const head = (title, sub) => { const h = document.createElement("h3"); h.className = "signs-head"; h.textContent = title; const sm = document.createElement("small"); sm.textContent = sub; h.appendChild(sm); box.appendChild(h); };
   for (const p of list) {
     if (p.id === 0) continue;
-    if (p.id === 1) head("Words", "Used when the Talk tab is set to Words.");
-    if (p.id === FIRST_LETTER) head("Alphabet", "Switch the Talk tab to Letters, then spell a word. Stop for 4 seconds and the glove says the whole word. For double letters (the LL in HELLO), relax your hand between them.");
-    const info = signInfo(p.id, p.text);
-    const [, shape, tip] = info;
+    const [, shape, tip] = signInfo(p.id, p.text);
     const card = document.createElement("div"); card.className = "sign"; card.dataset.id = p.id;
     const chip = p.offline ? (shape ? "" : '<span class="chip none">teach it first</span>')
       : p.taught > 0 ? `<span class="chip taught">taught ${p.taught}×</span>`
       : p.count > 0 ? '<span class="chip">built-in guess</span>'
       : '<span class="chip none">not taught yet</span>';
-    card.innerHTML = `${handSVG(info[3] || shape, "", info[4])}<b></b><p></p>${chip}`;
+    const showShape = shape && !(p.taught > 0 && !SIGN_LIB[p.id]?.[1]);
+    card.innerHTML = `${handSVG(showShape ? shape : null)}<b></b><p></p>${chip}`;
     card.querySelector("b").textContent = p.text;
     card.querySelector("p").textContent = tip;
     if (state.link) card.appendChild(mkBtn("Teach this", "btn small", () => { sendCmd("T" + p.id); }));
